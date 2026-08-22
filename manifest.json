@@ -1,7 +1,7 @@
 {
   "id": "read-aloud",
   "name": "Read Aloud",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "minAppVersion": "1.4.0",
   "description": "Speaks the note you are looking at — whole note, selection, or one heading's section — with a local neural voice.",
   "author": "Shirin",

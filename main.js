@@ -883,7 +883,7 @@ class ReadAloudPlugin extends (Plugin ?? Object) {
     this.settings = Object.assign({}, DEFAULTS, await this.loadData())
     this.sidecar = new Sidecar(this)
     this.player = new Player(this)
-    this.injectLibStyles()
+    this.injectStyles()
 
     this.addCommand({ id: 'note', name: 'Read aloud: note', callback: () => this.speakNote() })
     this.addCommand({
@@ -922,23 +922,38 @@ class ReadAloudPlugin extends (Plugin ?? Object) {
   }
 
   /**
-   * The player's stylesheet, read from the library rather than copied.
+   * Both stylesheets, read from disk and injected here — including the
+   * plugin's own.
    *
-   * A copy in this plugin's own styles.css would be a second version of a
-   * design that is already maintained in one place — the drift this whole
-   * codebase is arranged to avoid. Only the `--ra-*` mapping onto Obsidian's
-   * theme tokens lives locally.
+   * The library's stylesheet is read from disk rather than copied for the
+   * reason above. The plugin's own styles.css is injected for the reason the
+   * sidecar exists: Obsidian loads plugin CSS through its vault adapter, and
+   * that adapter does not follow a plugin directory that is a symlink into a
+   * git checkout — the stylesheet is skipped silently (no error, no console
+   * line), and the player falls back to raw browser chrome: tall unstyled
+   * heading buttons, filled transport buttons, a 100px scrubber. Node's own
+   * fs follows the symlink, and the rules are identical either way, so this
+   * is belt and suspenders: if Obsidian does load styles.css natively the
+   * same rules apply twice and nothing changes.
    */
-  injectLibStyles() {
+  injectStyles() {
+    const parts = []
+    try {
+      parts.push(fs.readFileSync(path.join(this.dir(), 'styles.css'), 'utf8'))
+    } catch (err) {
+      console.log(`[read-aloud] could not read the plugin stylesheet: ${err.message}`)
+    }
     const cssPath = path.join(this.settings.libPath, 'src', 'style.css')
     try {
-      this.styleEl?.remove()
-      this.styleEl = document.head.createEl('style', { attr: { 'data-read-aloud': 'lib' } })
-      this.styleEl.setText(fs.readFileSync(cssPath, 'utf8'))
+      parts.push(fs.readFileSync(cssPath, 'utf8'))
     } catch (err) {
       console.log(`[read-aloud] could not read the player stylesheet at ${cssPath}: ${err.message}`)
       new Notice('Read aloud: the player stylesheet is missing — check the library path in settings.')
     }
+    this.styleEl?.remove()
+    if (!parts.length) return
+    this.styleEl = document.head.createEl('style', { attr: { 'data-read-aloud': 'all' } })
+    this.styleEl.setText(parts.join('\n'))
   }
 
   dir() {
@@ -1100,7 +1115,7 @@ class ReadAloudSettingTab extends (PluginSettingTab ?? Object) {
         text.setValue(this.plugin.settings.libPath).onChange(async (value) => {
           this.plugin.settings.libPath = value
           await this.plugin.saveSettings()
-          this.plugin.injectLibStyles()
+          this.plugin.injectStyles()
           this.plugin.sidecar.stop()
         }),
       )

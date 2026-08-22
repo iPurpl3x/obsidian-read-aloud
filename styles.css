@@ -1,9 +1,12 @@
 /* Read Aloud — Obsidian's side of the styling only.
  *
  * The player's own stylesheet is NOT copied here. It is read from the library on
- * disk at load and injected (see `injectLibStyles` in main.js), so the widget
- * you polished in modicom and trading-analysis is the same widget here, and
- * improving it upstream improves it here without a second copy to keep in step.
+ * disk at load and injected alongside this file (see `injectStyles` in main.js),
+ * so the widget you polished in modicom and trading-analysis is the same widget
+ * here, and improving it upstream improves it here without a second copy to
+ * keep in step. This file itself is injected the same way, so the plugin's look
+ * does not depend on Obsidian's plugin-CSS loader following the symlinked
+ * plugin directory.
  *
  * What lives in this file: the `--ra-*` token mapping onto Obsidian's theme
  * variables, and the heading button, which is Obsidian-specific.
@@ -12,7 +15,11 @@
 .theme-light,
 .theme-dark,
 body {
-  --ra-accent: var(--interactive-accent);
+  /* Prefer the accent system's solid colour. --interactive-accent is the
+     *rendered* accent, and a theme may make it translucent (this vault's dark
+     theme sets it to rgba(…, 0.5)) — a scrubber thumb and progress fill at half
+     alpha read as broken. --color-accent is the same hue, opaque. */
+  --ra-accent: var(--color-accent, var(--interactive-accent));
   --ra-accent-ink: var(--text-on-accent);
   --ra-fg: var(--text-normal);
   --ra-muted: var(--text-muted);
@@ -90,6 +97,14 @@ body {
   border-radius: 999px;
 }
 
+/* Obsidian's button rules carry a fixed height (~30px); the play control is a
+   54px ring and must not be squished into a short hit box that clips it. */
+.ra-player .ra-player__play {
+  inline-size: 3.375rem;
+  block-size: 3.375rem;
+  flex: none;
+}
+
 /* Scrubber: full width, flat, with the library's own geometry restated where
    Obsidian's slider styling would otherwise apply. */
 .ra-player input[type='range'].ra-player__scrubber {
@@ -131,6 +146,12 @@ body {
   border-radius: 999px;
   background: var(--ra-accent);
   box-shadow: none;
+  /* Obsidian offsets its own thumb with `position: relative; top: -6px`;
+     stacked on our margin-top arithmetic that shifts the thumb off the
+     track, which is the scrubbed look that started this. */
+  position: static;
+  top: auto;
+  cursor: pointer;
 }
 
 /* The speaker on a heading. Hidden until the heading is hovered or the button
