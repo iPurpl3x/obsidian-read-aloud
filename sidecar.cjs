@@ -48,9 +48,10 @@ async function main() {
     // The plugin segments every passage into ~700-char clips, so a long note is
     // never one giant render — the library's 20k default would reject whole
     // notes before they reached the segmenter ("Passage is too long to speak",
-    // with no way past it). A generous ceiling, still bounded against a
-    // pathological paste.
-    maxTextLength: 500_000,
+    // with no way past it). A million characters is a guard, not a budget:
+    // streaming means only the first ~700-char clip is rendered before play,
+    // and the rest follow in the background.
+    maxTextLength: 1_000_000,
     onLog: (message) => console.error(`[read-aloud] ${message}`),
   })
 
