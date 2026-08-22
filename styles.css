@@ -38,6 +38,101 @@ body {
   bottom: calc(16px + var(--ra-inset-bottom, 0px));
 }
 
+/* ---------------------------------------------------------------------------
+ * Host adaptation.
+ *
+ * The library's stylesheet is written for a web app, where a `button` has no
+ * chrome and an `input[type=range]` has no styling until you give it some.
+ * Obsidian gives both a full appearance — `box-shadow` on every button, its own
+ * slider track and thumb — and `input[type='range']` is an attribute selector,
+ * so it ties on specificity with the library's class and wins on document
+ * order, because theme CSS loads after plugin CSS.
+ *
+ * `!important` is deliberate and confined to this block: it is the only thing
+ * that holds against an arbitrary theme, and the alternative is a specificity
+ * war that a theme can always escalate.
+ * ------------------------------------------------------------------------- */
+
+.ra-player button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none !important;
+  font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.ra-player button:hover,
+.ra-player button:focus,
+.ra-player button:active {
+  box-shadow: none !important;
+}
+
+/* The library sizes the transport for a web page. Next to Obsidian's own
+   controls, 2.75rem circles read as three filled buttons rather than as
+   punctuation either side of the play control. */
+.ra-player .ra-player__icon {
+  inline-size: 2.25rem;
+  block-size: 2.25rem;
+}
+
+.ra-player .ra-player__close {
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+}
+
+/* The play control is the progress ring; anything behind it is a second circle
+   competing with the one that carries meaning. */
+.ra-player .ra-player__play,
+.ra-player .ra-player__play:hover {
+  background: transparent !important;
+  border-radius: 999px;
+}
+
+/* Scrubber: full width, flat, with the library's own geometry restated where
+   Obsidian's slider styling would otherwise apply. */
+.ra-player input[type='range'].ra-player__scrubber {
+  display: block;
+  width: 100% !important;
+  block-size: 1.25rem;
+  margin: 0;
+  padding: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.ra-player input[type='range'].ra-player__scrubber::-webkit-slider-runnable-track {
+  block-size: 0.375rem;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--ra-accent) var(--ra-progress, 0%),
+    var(--ra-sunken) var(--ra-progress, 0%)
+  );
+  box-shadow: none;
+}
+
+/* Centring the thumb on the track is arithmetic, not taste: a 0.875rem thumb on
+   a 0.375rem track needs half the difference lifted off the top, or it sits
+   below the line it is supposed to ride. */
+.ra-player input[type='range'].ra-player__scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  inline-size: 0.875rem;
+  block-size: 0.875rem;
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-top: -0.25rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ra-accent);
+  box-shadow: none;
+}
+
 /* The speaker on a heading. Hidden until the heading is hovered or the button
    itself is focused: a button on every heading, always visible, turns a document
    into a control panel. */
