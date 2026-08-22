@@ -45,6 +45,12 @@ async function main() {
     basePath,
     cacheDir,
     defaultVoice: defaultVoice || 'kokoro:bm_george',
+    // The plugin segments every passage into ~700-char clips, so a long note is
+    // never one giant render — the library's 20k default would reject whole
+    // notes before they reached the segmenter ("Passage is too long to speak",
+    // with no way past it). A generous ceiling, still bounded against a
+    // pathological paste.
+    maxTextLength: 500_000,
     onLog: (message) => console.error(`[read-aloud] ${message}`),
   })
 
