@@ -1,0 +1,82 @@
+/* Read Aloud — Obsidian's side of the styling only.
+ *
+ * The player's own stylesheet is NOT copied here. It is read from the library on
+ * disk at load and injected (see `injectLibStyles` in main.js), so the widget
+ * you polished in modicom and trading-analysis is the same widget here, and
+ * improving it upstream improves it here without a second copy to keep in step.
+ *
+ * What lives in this file: the `--ra-*` token mapping onto Obsidian's theme
+ * variables, and the heading button, which is Obsidian-specific.
+ */
+
+.theme-light,
+.theme-dark,
+body {
+  --ra-accent: var(--interactive-accent);
+  --ra-accent-ink: var(--text-on-accent);
+  --ra-fg: var(--text-normal);
+  --ra-muted: var(--text-muted);
+  --ra-surface: var(--background-secondary);
+  --ra-sunken: var(--background-modifier-border);
+  --ra-shadow: var(--shadow-l);
+  --ra-shadow-idle: var(--shadow-s);
+  --ra-radius: 999px;
+  --ra-radius-card: var(--radius-m);
+  --ra-focus: var(--interactive-accent);
+}
+
+/* Above Obsidian's own chrome, below its modals. */
+.ra-player--fixed {
+  --ra-player-z: var(--layer-popover);
+}
+
+/* Obsidian's mobile/sidebar layout means the viewport corner is not always the
+   right corner; dock to the workspace leaf instead of the window. */
+.ra-player--fixed {
+  position: fixed;
+  right: calc(16px + var(--ra-inset-right, 0px));
+  bottom: calc(16px + var(--ra-inset-bottom, 0px));
+}
+
+/* The speaker on a heading. Hidden until the heading is hovered or the button
+   itself is focused: a button on every heading, always visible, turns a document
+   into a control panel. */
+.read-aloud-heading-btn {
+  margin-left: 0.4em;
+  padding: 0;
+  border: none;
+  background: none;
+  box-shadow: none;
+  color: var(--text-faint);
+  opacity: 0;
+  vertical-align: middle;
+  cursor: pointer;
+  transition: opacity 120ms ease, color 120ms ease;
+}
+
+.read-aloud-heading-btn:hover {
+  color: var(--interactive-accent);
+}
+
+h1:hover > .read-aloud-heading-btn,
+h2:hover > .read-aloud-heading-btn,
+h3:hover > .read-aloud-heading-btn,
+h4:hover > .read-aloud-heading-btn,
+h5:hover > .read-aloud-heading-btn,
+h6:hover > .read-aloud-heading-btn,
+.read-aloud-heading-btn:focus-visible {
+  opacity: 1;
+}
+
+/* This heading is the one being read. */
+.read-aloud-heading-btn[data-reading='true'] {
+  opacity: 1;
+  color: var(--interactive-accent);
+}
+
+@media print {
+  .ra-player,
+  .read-aloud-heading-btn {
+    display: none;
+  }
+}
