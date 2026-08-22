@@ -136,21 +136,36 @@ body {
 /* The speaker on a heading. Hidden until the heading is hovered or the button
    itself is focused: a button on every heading, always visible, turns a document
    into a control panel. */
+/* Square, and sized here rather than left to the icon: Obsidian's button rules
+   carry padding and a min-height, which stretch a 14px glyph into a tall pill.
+   Same reasoning as the host-adaptation block above, same use of !important. */
 .read-aloud-heading-btn {
-  margin-left: 0.4em;
-  padding: 0;
-  border: none;
-  background: none;
-  box-shadow: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 1.5rem;
+  block-size: 1.5rem;
+  margin-left: 0.3em;
+  padding: 0 !important;
+  min-inline-size: 0 !important;
+  min-block-size: 0 !important;
+  border: 0 !important;
+  border-radius: 999px;
+  background: transparent !important;
+  box-shadow: none !important;
   color: var(--text-faint);
+  line-height: 1;
   opacity: 0;
   vertical-align: middle;
   cursor: pointer;
-  transition: opacity 120ms ease, color 120ms ease;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: opacity 120ms ease, color 120ms ease, background-color 120ms ease;
 }
 
 .read-aloud-heading-btn:hover {
   color: var(--interactive-accent);
+  background: var(--background-modifier-hover) !important;
 }
 
 h1:hover > .read-aloud-heading-btn,
