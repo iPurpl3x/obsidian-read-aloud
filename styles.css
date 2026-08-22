@@ -84,6 +84,18 @@ body {
   block-size: 2.25rem;
 }
 
+/* The blanket button reset above strips the chips' horizontal padding and
+   pill background (a `button` beat the lib's single-class chip rule). The
+   voice chip is a `<select>`, so it was never affected. */
+.ra-player button.ra-player__chip {
+  padding-inline: 0.875rem;
+  background: var(--ra-sunken);
+}
+
+.ra-player button.ra-player__chip:hover {
+  background: color-mix(in oklab, var(--ra-fg) 16%, transparent);
+}
+
 .ra-player .ra-player__close {
   inline-size: 1.75rem;
   block-size: 1.75rem;
