@@ -939,7 +939,11 @@ class ReadAloudPlugin extends (Plugin ?? Object) {
   injectStyles() {
     const parts = []
     try {
-      parts.push(fs.readFileSync(path.join(this.dir(), 'styles.css'), 'utf8'))
+      // manifest.dir is the plugin's own folder as Obsidian resolved it (it
+      // uses the same path for loadData), so this is correct even when the
+      // folder is a symlink into a git checkout.
+      const dir = this.manifest.dir ?? this.dir()
+      parts.push(fs.readFileSync(path.join(dir, 'styles.css'), 'utf8'))
     } catch (err) {
       console.log(`[read-aloud] could not read the plugin stylesheet: ${err.message}`)
     }
