@@ -36,11 +36,19 @@ const DEFAULTS = {
   nodePath: '',
   voice: 'kokoro:bm_george',
   rate: 1,
-  rates: [1, 1.25, 1.5, 2],
+  rates: [0.8, 0.9, 1, 1.25, 1.5, 2],
+  // Calm: slower default speed (CALM_RATE) and heavier pauses between
+  // sentences, for dense information-heavy text. The pauses are requested from
+  // the service per read, so toggling re-speaks what you were listening to.
+  calm: false,
   skipSeconds: 10,
   headingButtons: true,
   warmOnOpen: true,
 }
+
+/** The playback rate Calm pins as its default — slower than 1×, gentle enough
+ *  to follow a sentence the first time. */
+const CALM_RATE = 0.8
 
 /** How long the card stays open after the pointer leaves. Without a grace
  *  period, expanding on hover is a trap: the widget grows, reflows under the
@@ -475,8 +483,8 @@ class Player {
       this.paint()
     })
     this.audio.addEventListener('ended', () => this.next())
-    this.audio.addEventListener('play', () => this.render())
-    this.audio.addEventListener('pause', () => this.render())
+    this.audio.addEventListener('play', () => this.refresh())
+    this.audio.addEventListener('pause', () => this.refresh())
   }
 
   /* ---- state */
@@ -540,6 +548,9 @@ class Player {
       const data = await this.plugin.sidecar.json('POST', this.plugin.sidecar.basePath, {
         text: body,
         voice: this.plugin.settings.voice,
+        // Calm requests heavier pause-widening; it is part of the cache key, so
+        // calm and normal reads of the same note cache separately.
+        calm: this.plugin.settings.calm,
         // What makes a long note start on its first sentence rather than after
         // the whole thing renders. Without it there is no `segments` array.
         segment: true,
@@ -571,7 +582,7 @@ class Player {
       this.audio.currentTime = at || 0
       await this.audio.play()
       this.preparing = false
-      this.render()
+      this.refresh()
       this.prefetch(index + 1, token)
     } catch (err) {
       if (token !== this.token) return
@@ -597,7 +608,7 @@ class Player {
 
   next() {
     if (this.index + 1 < this.segments.length) return this.playSegment(this.index + 1, 0)
-    this.render()
+    this.refresh()
     // "Still listening" — restarts the model's idle countdown from the end of
     // playback rather than from render, which is when you are actually done.
     this.plugin.sidecar.json('POST', `${this.plugin.sidecar.basePath}/warm`).catch(() => {})
@@ -634,7 +645,21 @@ class Player {
     this.plugin.settings.rate = rates[(at + 1) % rates.length]
     this.plugin.saveSettings()
     this.audio.playbackRate = this.plugin.settings.rate
-    this.render()
+    this.refresh()
+  }
+
+  /** Flips Calm. Turning it on pins the slower default; either way the current
+   *  passage is re-read so the heavier (or lighter) pauses actually land —
+   *  the pause amount is baked into the audio, not just the player. */
+  toggleCalm() {
+    const settings = this.plugin.settings
+    settings.calm = !settings.calm
+    if (settings.calm) settings.rate = CALM_RATE
+    this.plugin.saveSettings()
+    this.audio.playbackRate = settings.rate
+    this.refresh()
+    const passage = this.lastPassage
+    if (passage) this.speak(passage)
   }
 
   async setVoice(voiceId) {
@@ -733,6 +758,57 @@ class Player {
     this.paint()
   }
 
+  /**
+   * In-place update of everything that changes with *transport* state, without
+   * rebuilding the card.
+   *
+   * Rebuilding on every transient change is what made the player flicker: the
+   * card is emptied and recreated whenever play/pause fired, the speed chip was
+   * clicked or Calm was toggled — which is to say on almost every button press.
+   * Only structural transitions (a new passage, expanding/collapsing, an error)
+   * still go through `render()`.
+   */
+  refresh() {
+    if (!this.root) return
+    const status = this.status
+    const preparing = status === 'preparing'
+    const locked = preparing || !this.total
+    this.root.setAttribute('data-state', status)
+    this.root.setAttribute('data-active', status === 'playing' || preparing ? 'true' : 'false')
+
+    // Ring glyphs: collapsed ring and the transport's play ring both flip
+    // between loading dots, play and pause as the passage moves on.
+    for (const ring of this.root.querySelectorAll('.ra-player__ring')) {
+      const glyph = ring.querySelector('.ra-player__ring-glyph')
+      if (!glyph) continue
+      const size = ring.classList.contains('ra-player__ring--mini') ? RING.mini.glyph : RING.control.glyph
+      glyph.empty()
+      if (preparing) loadingDots(glyph, size)
+      else glyph.appendChild(status === 'playing' ? Icons.pause(size) : Icons.play(size))
+    }
+
+    const play = this.root.querySelector('.ra-player__play')
+    if (play) {
+      const playing = status === 'playing'
+      play.disabled = locked || status === 'error'
+      play.setAttribute('aria-label', playing ? 'Pause' : 'Play')
+      play.setAttribute('title', playing ? 'Pause' : 'Play')
+    }
+    for (const el of this.root.querySelectorAll('.ra-player__icon')) {
+      if (!el.classList.contains('ra-player__close')) el.disabled = locked
+    }
+    if (this.scrubEl) this.scrubEl.disabled = locked
+
+    // Chips whose label is a value, not a fact: the speed readout and Calm's
+    // pressed state change without the card needing to be rebuilt.
+    const rateChip = this.root.querySelector('.ra-player__rate')
+    if (rateChip) rateChip.setText(`${this.plugin.settings.rate}× speed`)
+    const calmChip = this.root.querySelector('.ra-player__calm')
+    if (calmChip) calmChip.setAttribute('aria-pressed', String(this.plugin.settings.calm))
+
+    this.paint()
+  }
+
   buildCollapsed(status) {
     const button = this.root.createEl('button', { cls: 'ra-player__collapsed', attr: { type: 'button' } })
     button.setAttribute('aria-expanded', 'false')
@@ -821,12 +897,24 @@ class Player {
     // Settings last and quietest: things you set once and forget.
     const settings = card.createDiv({ cls: 'ra-player__settings' })
     const rateChip = settings.createEl('button', {
-      cls: 'ra-player__chip',
+      cls: 'ra-player__chip ra-player__rate',
       text: `${this.plugin.settings.rate}× speed`,
       attr: { type: 'button' },
     })
     rateChip.setAttribute('title', 'Playback speed')
     rateChip.onclick = () => this.cycleRate()
+
+    const calmChip = settings.createEl('button', {
+      cls: 'ra-player__chip ra-player__calm',
+      text: 'Calm',
+      attr: { type: 'button' },
+    })
+    calmChip.setAttribute('aria-pressed', String(this.plugin.settings.calm))
+    calmChip.setAttribute(
+      'title',
+      'Calm — slower default speed and longer pauses between sentences, for dense text',
+    )
+    calmChip.onclick = () => this.toggleCalm()
 
     const groups = this.plugin.voiceGroups()
     if (groups.length) {
@@ -1008,10 +1096,12 @@ class ReadAloudPlugin extends (Plugin ?? Object) {
       if (!text.trim()) return
       // `segment: true` matters: a segmented play hashes each part separately,
       // so warming without it renders a whole-passage clip under a key the
-      // player never asks for — full cost, and you still wait.
+      // player never asks for — full cost, and you still wait. `calm` must
+      // match too, or the warm renders the other variant and helps nobody.
       await this.sidecar.json('POST', this.sidecar.basePath, {
         text,
         voice: this.settings.voice,
+        calm: this.settings.calm,
         segment: true,
       })
       console.log(`[read-aloud] warmed ${file.basename}`)
@@ -1085,6 +1175,19 @@ class ReadAloudSettingTab extends (PluginSettingTab ?? Object) {
         }
         dropdown.setValue(this.plugin.settings.voice).onChange((value) => this.plugin.player.setVoice(value))
       })
+
+    new Setting(containerEl)
+      .setName('Calm reading')
+      .setDesc(
+        'Slower default speed and longer pauses between sentences — for dense, information-heavy text. Matches the Calm button on the player.',
+      )
+      .addToggle((toggle) =>
+        toggle.setValue(this.plugin.settings.calm).onChange((value) => {
+          this.plugin.settings.calm = value
+          if (value) this.plugin.settings.rate = CALM_RATE
+          this.plugin.saveSettings()
+        }),
+      )
 
     new Setting(containerEl)
       .setName('Pre-render the note you open')

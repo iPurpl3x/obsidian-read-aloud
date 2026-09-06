@@ -96,6 +96,22 @@ body {
   background: color-mix(in oklab, var(--ra-fg) 16%, transparent);
 }
 
+/* The speed chip must not change width as its label changes — "0.75× speed"
+   is longer than "1× speed", and a resizing chip shoves its neighbour aside
+   on every click. Fixed width, centred, tabular digits. */
+.ra-player button.ra-player__chip.ra-player__rate {
+  justify-content: center;
+  min-inline-size: 7.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Calm is a state, not a cycle — the chip reads it the way the voice chip
+   reads its current value. Pushed = accent fill, like an active toggle. */
+.ra-player button.ra-player__chip.ra-player__calm[aria-pressed='true'] {
+  background: var(--ra-accent);
+  color: var(--ra-accent-ink);
+}
+
 .ra-player .ra-player__close {
   inline-size: 1.75rem;
   block-size: 1.75rem;
